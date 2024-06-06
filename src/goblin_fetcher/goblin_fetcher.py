@@ -39,10 +39,12 @@ Methods
     - get_climate_change_crop_emissions_by_category(): Retrieves climate change emissions data for crops by category.
     - get_climate_change_crop_emissions_aggregated(): Fetches aggregated climate change emissions data for crops.
     - get_climate_change_animal_emissions_aggregated(): Retrieves aggregated climate change emissions data for livestock.
+    - get_abated_climate_change_animal_emissions_aggregated(): Fetches aggregated climate change emissions data for livestock after applying abatement rates.
     - get_animal_emissions_by_category_co2e(): Fetches livestock emissions data by category in CO2e.
     - get_crop_emissions_by_category_co2e(): Retrieves crop emissions data by category in CO2e.
     - get_climate_change_emission_totals(): Fetches total climate change emissions data.
     - get_eutrophication_emission_totals(): Retrieves total eutrophication emissions data.
+    - get_abated_eutrophication_emission_totals(): Fetches total eutrophication emissions data after applying abatement rates.
     - get_air_quality_emission_totals(): Fetches total air quality emissions data.
     - get_eutrophication_animal_emissions_by_category(): Retrieves eutrophication emissions data for livestock by category.
     - get_eutrophication_crop_emissions_by_category(): Fetches eutrophication emissions data for crops by category.
@@ -53,6 +55,12 @@ Methods
     - get_forest_aggregate(): Retrieves aggregated forest carbon data.
     - get_total_afforested(): Retrieves data on total afforested area for each scenario.
     - get_landuse_areas(): Retrieves data on land use areas for each scenario and the baseline.
+    - dump_tables(): Dumps all the output tables to a specified directory.
+    - get_climate_landuse_totals_time_series(): Retrieves climate land use totals time series data.
+    - get_climate_livestock_totals_time_series(): Fetches climate livestock totals time series data.
+    - get_climate_forest_totals_time_series(): Retrieves climate forest totals time series data.
+    - get_climate_totals_time_series(): Fetches climate totals time series data.
+    - get_abated_climate_totals_time_series(): Retrieves abated climate totals time series data.
 
 Each method in the DataFetcher class is designed to retrieve a specific type of data from the output tables managed by the DataManager. The methods return pandas DataFrames containing relevant data, which can be further analyzed or visualized as required.
 
@@ -63,6 +71,8 @@ Note:
 """
 
 from goblin_fetcher.resource_manager.database_manager import DataManager
+from goblin_fetcher.abatement import Abate
+from goblin_fetcher.time_series import TimeSeries
 import os
 
 class DataFetcher:
@@ -130,6 +140,9 @@ class DataFetcher:
         get_climate_change_animal_emissions_aggregated()
             Returns aggregated climate change emissions data for livestock from the "climate_change_livestock_aggregated" output data table.
 
+        get_abated_climate_change_animal_emissions_aggregated()
+            Returns aggregated climate change emissions data for livestock after applying abatement rates from the "climate_change_livestock_aggregated" output data table.
+        
         get_animal_emissions_by_category_co2e()
             Returns climate change emissions data for livestock categories converted to CO2e from the "climate_change_livestock_categories_as_co2e" output data table.
 
@@ -139,8 +152,14 @@ class DataFetcher:
         get_climate_change_emission_totals()
             Returns the total climate change emissions data from the "climate_change_totals" output data table.
 
+        get_abated_climate_change_emissions_totals()
+            Returns the total climate change emissions data after applying abatement rates from the "climate_change_totals" output data table.
+
         get_eutrophication_emission_totals()
             Returns the total eutrophication emissions data from the "eutrophication_totals" output data table.
+
+        get_abated_eutrophication_emission_totals()
+            Returns the total eutrophication emissions data after applying abatement rates from the "eutrophication_totals" output data table.
 
         get_air_quality_emission_totals()
             Returns the total air quality emissions data from the "air_quality_totals" output data table.
@@ -171,6 +190,24 @@ class DataFetcher:
 
         get_landuse_areas()
             Returns the land use areas data from the "land_use_areas" output data table.
+
+        dump_tables()
+            Dumps all the output tables to a specified directory.
+
+        get_climate_landuse_totals_time_series()
+            Returns the climate land use totals time series data from the output data tables.
+        
+        get_climate_livestock_totals_time_series()
+            Returns the climate livestock totals time series data from the output data tables.
+
+        get_climate_forest_totals_time_series()
+            Returns the climate forest totals time series data from the output data tables.
+
+        get_climate_totals_time_series()
+            Returns the climate totals time series data from the output data tables.
+
+        get_abated_climate_totals_time_series()
+            Returns the abated climate totals time series data from the output data tables.
         """
         self.data_manager_class = DataManager(DATABASE_PATH)
 
@@ -639,6 +676,45 @@ class DataFetcher:
             )
         )
         return total_animal_gases
+    
+    def get_abated_climate_change_animal_emissions_aggregated(self, rate, CH4=None, N2O=None):
+        """
+        Get total aggregated greenhouse gas emissions for livestock production after applying abatement rates.
+
+        This method retrieves the total aggregated emissions for different greenhouse gases related to livestock production
+        after applying abatement rates. The emissions are calculated in terms of CH4 (methane), N2O (nitrous oxide), CO2 (carbon dioxide),
+        and CO2E (carbon dioxide equivalent).
+
+        Categories:
+            - CH4 (Methane) emissions
+            - N2O (Nitrous Oxide) emissions
+            - CO2 (Carbon Dioxide) emissions
+            - CO2E (Carbon Dioxide Equivalent) emissions
+
+        Parameters:
+            rate (float): The abatement rate applied to the emissions.
+            CH4 (float): The abatement rate applied to CH4 emissions. If None, the default value is used.
+            N2O (float): The abatement rate applied to N2O emissions. If None, the default value is used.
+
+        Returns:
+            pandas.DataFrame:
+                A dataframe containing the total aggregated greenhouse gas emissions for livestock production after applying abatement rates.
+                The dataframe includes the emissions values for each of the mentioned categories.
+
+        Note:
+            The emission values are aggregated at a higher level, representing the cumulative emissions from various sources
+            associated with livestock production. They are not broken down into more specific subcategories as in the method
+            `get_climate_change_animal_emissions_by_category`.
+
+            Reported in kilotons.
+
+        """
+        livestock_dataframe = self.get_climate_change_animal_emissions_aggregated()
+        total_animal_gases = Abate.climate_abate_livestock(
+           livestock_dataframe, rate, CH4, N2O
+        )
+        return total_animal_gases
+    
 
     def get_animal_emissions_by_category_co2e(self):
         """
@@ -730,6 +806,17 @@ class DataFetcher:
         )
         return total_climate_change
 
+    def get_abated_climate_change_emissions_totals(self, baseline_year, target_year, rate, CH4=None, N2O=None):
+        
+        scenario_df = self.get_scenario_inputs()
+        livestock_df = self.get_climate_change_animal_emissions_aggregated()
+        landcover_df = self.get_landuse_emissions_totals()
+
+        total_climate_change = Abate.climate_total_abated(baseline_year, target_year, scenario_df, livestock_df, landcover_df, rate, CH4, N2O)
+
+        return total_climate_change
+
+
     def get_eutrophication_emission_totals(self):
         """
         Get the total eutrophication emissions.
@@ -757,6 +844,18 @@ class DataFetcher:
             )
         )
         return total_eutrophication
+    
+
+    def get_abated_eutrophication_emission_totals(self, rate):
+        """
+        Get the total eutrophication emissions after applying abatement rates.
+
+        This method retrieves the total eutrophication emissions
+        """
+        eutrophication_dataframe = self.get_eutrophication_emission_totals()
+        total_eutrophication = Abate.eutrophication_air_quality_abate_livestock(eutrophication_dataframe, rate)
+        return total_eutrophication
+
 
     def get_air_quality_emission_totals(self):
         """
@@ -1082,3 +1181,107 @@ class DataFetcher:
 
         for get_method, filename in tables:
             get_method().to_csv(os.path.join(data_path, filename))
+
+
+    def get_climate_landuse_totals_time_series(self, baseline_year, target_year):
+        """
+        Get the time series of climate totals.
+
+        This method retrieves a dataframe that provides the time series of climate totals for each scenario and the baseline. The values are reported in kilotons of CO2e, representing the cumulative greenhouse gas emissions over time.
+
+        Returns:
+            pandas.DataFrame:
+                A dataframe containing the time series of climate totals for each scenario and the baseline. The values are reported in kilotons of CO2e and provide insights into the temporal dynamics of greenhouse gas emissions across different scenarios.
+
+        Note:
+            The time series of climate totals help track the changes in greenhouse gas emissions over time, allowing for the assessment of emission trends and the impact of different land use and management practices on climate change.
+
+            Reported in kilotons.
+
+        """
+
+        scenario_df = self.get_scenario_inputs()
+        landcover_df = self.get_landuse_emissions_totals()
+
+        total_climate_change = TimeSeries.get_land_use_emissions_time_series(baseline_year, target_year, scenario_df, landcover_df)
+
+        return total_climate_change
+
+
+    def get_climate_livestock_totals_time_series(self,baseline_year, target_year):
+        """
+        Get the time series of climate totals.
+        
+        This method retrieves a dataframe that provides the time series of climate totals for each scenario and the baseline. The values are reported in kilotons of CO2e, representing the cumulative greenhouse gas emissions over time.
+
+        Returns:
+            pandas.DataFrame:
+                A dataframe containing the time series of climate totals for each scenario and the baseline. The values are reported in kilotons of CO2e and provide insights into the temporal dynamics of greenhouse gas emissions across different scenarios.
+        """
+
+        scenario_df = self.get_scenario_inputs()
+        livestock_df = self.get_climate_change_animal_emissions_aggregated()
+
+        total_climate_change = TimeSeries.get_livestock_emissions_time_series(baseline_year, target_year, scenario_df, livestock_df)
+
+        return total_climate_change
+    
+
+    def get_climate_forest_totals_time_series(self, baseline_year, target_year):
+        """
+        Get the time series of climate totals.
+
+        This method retrieves a dataframe that provides the time series of climate totals for each scenario and the baseline. The values are reported in kilotons of CO2e, representing the cumulative greenhouse gas emissions over time.
+
+        Returns:
+            pandas.DataFrame:
+                A dataframe containing the time series of climate totals for each scenario and the baseline. The values are reported in kilotons of CO2e and provide insights into the temporal dynamics of greenhouse gas emissions across different scenarios.
+
+        """
+        scenario_df = self.get_scenario_inputs()
+        forest_df = self.get_forest_flux()
+
+        total_climate_change = TimeSeries.get_forest_carbon_time_series(baseline_year, target_year, scenario_df,forest_df)
+
+        return total_climate_change
+    
+
+    def get_climate_totals_time_series(self, baseline_year, target_year):
+        """
+        Get the time series of climate totals.
+
+        This method retrieves a dataframe that provides the time series of climate totals for each scenario and the baseline. The values are reported in kilotons of CO2e, representing the cumulative greenhouse gas emissions over time.
+
+        Returns:
+            pandas.DataFrame:
+                A dataframe containing the time series of climate totals for each scenario and the baseline. The values are reported in kilotons of CO2e and provide insights into the temporal dynamics of greenhouse gas emissions across different scenarios.
+        """
+
+        scenario_df = self.get_scenario_inputs()
+        livestock_df = self.get_climate_change_animal_emissions_aggregated()
+        landcover_df = self.get_landuse_emissions_totals()
+        forest_df = self.get_forest_flux()
+
+        total_climate_change = TimeSeries.total_climate_change_emissions_time_series(baseline_year, target_year, scenario_df, livestock_df, landcover_df, forest_df)
+
+        return total_climate_change
+    
+    def get_abated_climate_totals_time_series(self, baseline_year, target_year, rate, CH4=None, N2O=None):
+        """
+        Get the abated time series of climate totals.
+
+        This method retrieves a dataframe that provides the time series of climate totals for each scenario and the baseline. The values are reported in kilotons of CO2e, representing the cumulative greenhouse gas emissions over time.
+
+        Returns:
+            pandas.DataFrame:
+                A dataframe containing the time series of climate totals for each scenario and the baseline. The values are reported in kilotons of CO2e and provide insights into the temporal dynamics of greenhouse gas emissions across different scenarios.
+        """
+
+        scenario_df = self.get_scenario_inputs()
+        livestock_df = self.get_abated_climate_change_animal_emissions_aggregated(rate, CH4, N2O)
+        landcover_df = self.get_landuse_emissions_totals()
+        forest_df = self.get_forest_flux()
+
+        total_climate_change = TimeSeries.total_climate_change_emissions_time_series(baseline_year, target_year, scenario_df, livestock_df, landcover_df, forest_df)
+
+        return total_climate_change
